@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Build a Todo App with Supabase</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #242424;
+      --border: #2e2e2e;
+      --green: #3ecf8e;
+      --green-dim: #1a5c3e;
+      --text: #ededed;
+      --muted: #888;
+      --code-bg: #111;
+      --radius: 8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      padding: 0 1rem;
+    }
+
+    header {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 4rem 0 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .badge {
+      display: inline-block;
+      background: var(--green-dim);
+      color: var(--green);
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 1rem;
+    }
+
+    h1 span { color: var(--green); }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1.05rem;
+      max-width: 580px;
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 3rem 0 6rem;
+    }
+
+    /* Steps */
+    .step {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 1.5rem;
+      margin-bottom: 3.5rem;
+    }
+
+    .step-num {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--green);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-body h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.6rem;
+    }
+
+    .step-body p {
+      color: #ccc;
+      margin-bottom: 1rem;
+    }
+
+    .step-body p + p { margin-top: -0.25rem; }
+
+    /* Code blocks */
+    .code-block {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 1rem 0;
+    }
+
+    .code-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: "SF Mono", "Fira Code", monospace;
+    }
+
+    .code-block-header .lang { color: var(--green); font-weight: 600; }
+
+    pre {
+      padding: 1.2rem 1.4rem;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      line-height: 1.65;
+    }
+
+    code {
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+      font-size: 0.82rem;
+    }
+
+    p code, li code {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.1rem 0.35rem;
+      color: var(--green);
+    }
+
+    /* Syntax highlight classes */
+    .kw  { color: #f97583; }
+    .fn  { color: #79b8ff; }
+    .str { color: #9ecbff; }
+    .cmt { color: #555; font-style: italic; }
+    .num { color: #f8c555; }
+    .var { color: var(--text); }
+    .typ { color: #b392f0; }
+
+    /* Callout */
+    .callout {
+      border-left: 3px solid var(--green);
+      background: var(--surface);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 0.9rem 1.2rem;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+
+    .callout strong { color: var(--green); }
+
+    /* SQL highlight */
+    .sql-kw { color: #f97583; font-weight: 600; }
+    .sql-fn  { color: #79b8ff; }
+    .sql-str { color: #9ecbff; }
+    .sql-cmt { color: #555; font-style: italic; }
+
+    /* Demo preview */
+    .preview-box {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 1.5rem 0;
+    }
+
+    .preview-bar {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; }
+    .dot-y { background: #febc2e; }
+    .dot-g { background: #28c840; }
+
+    .preview-body {
+      background: #fff;
+      padding: 1.5rem;
+      color: #111;
+      font-size: 0.88rem;
+    }
+
+    .preview-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #111;
+    }
+
+    .preview-input-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .preview-input {
+      flex: 1;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.85rem;
+      outline: none;
+      color: #555;
+    }
+
+    .preview-btn {
+      background: #3ecf8e;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.45rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: default;
+    }
+
+    .preview-list { list-style: none; }
+
+    .preview-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f1f5f9;
+      color: #333;
+    }
+
+    .preview-item:last-child { border-bottom: none; }
+
+    .preview-check {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      border: 2px solid #3ecf8e;
+      flex-shrink: 0;
+    }
+
+    .preview-check.done {
+      background: #3ecf8e;
+      position: relative;
+    }
+
+    .preview-item.done-item span { text-decoration: line-through; color: #aaa; }
+
+    ul.feature-list {
+      list-style: none;
+      margin: 0.75rem 0;
+      padding: 0;
+    }
+
+    ul.feature-list li {
+      padding: 0.25rem 0;
+      padding-left: 1.4rem;
+      color: #ccc;
+      position: relative;
+    }
+
+    ul.feature-list li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: var(--green);
+    }
+
+    hr.step-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0 0 3.5rem;
+      grid-column: 1 / -1;
+    }
+
+    footer {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 2rem 0;
+      border-top: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    footer a { color: var(--green); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 540px) {
+      .step { grid-template-columns: 1fr; }
+      .step-num { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">Step-by-step guide</div>
+  <h1>Todo App with <span>Supabase</span></h1>
+  <p class="subtitle">
+    Build a real-time todo list that works for anonymous users — no sign-up required.
+    Uses Supabase Auth (anonymous sign-in), a Postgres table, and Row Level Security.
+  </p>
+</header>
+
+<main>
+
+  <!-- ── STEP 1 ── -->
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h2>Create a Supabase project</h2>
+      <p>
+        Go to <a href="https://supabase.com" target="_blank" rel="noopener" style="color:var(--green)">supabase.com</a>
+        and sign in. Click <strong>New project</strong>, choose an organization, give your project a
+        name (e.g. <code>todo-app</code>), set a strong database password, and pick the region
+        closest to your users. Click <strong>Create new project</strong> and wait ~1 minute for it
+        to provision.
+      </p>
+      <p>
+        Once ready, head to <strong>Project Settings → API</strong>. You'll need two values:
+      </p>
+      <ul class="feature-list">
+        <li><strong>Project URL</strong> — looks like <code>https://xxxx.supabase.co</code></li>
+        <li><strong>anon public key</strong> — safe to expose in frontend code</li>
+      </ul>
+      <div class="callout">
+        <strong>Tip:</strong> Keep the <em>service_role</em> key secret. For this app you only
+        ever need the <em>anon</em> key on the client.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 2 ── -->
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h2>Enable anonymous sign-in</h2>
+      <p>
+        By default, Supabase requires an email or OAuth to create a session. Anonymous sign-in
+        lets visitors get a real JWT without entering any credentials — perfect for a
+        zero-friction todo app.
+      </p>
+      <p>
+        In your Supabase dashboard go to <strong>Authentication → Providers → Anonymous</strong>
+        and toggle it <strong>on</strong>.
+      </p>
+      <div class="callout">
+        <strong>How it works:</strong> Each anonymous user gets a unique UUID stored in
+        <code>auth.users</code>. Row Level Security will use that UUID to isolate each person's
+        todos from everyone else's — with no login screen required.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 3 ── -->
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h2>Create the todos table</h2>
+      <p>
+        Open the <strong>SQL Editor</strong> in your dashboard and run the following. It creates
+        the table, enables Row Level Security, and adds policies so each user can only see and
+        modify their own rows.
+      </p>
+
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="lang">SQL</span>
+          <span>SQL Editor → New query</span>
+        </div>
+        <pre><code><span class="sql-kw">CREATE TABLE</span> todos (
+  id         uuid        <span class="sql-kw">DEFAULT</span> gen_random_uuid() <span class="sql-kw">PRIMARY KEY</span>,
+  user_id    uuid        <span class="sql-kw">REFERENCES</span> auth.users (id) <span class="sql-kw">ON DELETE CASCADE</span> <span class="sql-kw">NOT NULL</span>,
+  task       text        <span class="sql-kw">NOT NULL</span>,
+  is_done    boolean     <span class="sql-kw">DEFAULT</span> <span class="sql-fn">false</span> <span class="sql-kw">NOT NULL</span>,
+  inserted_at timestamptz <span class="sql-kw">DEFAULT</span> now() <span class="sql-kw">NOT NULL</span>
+);
+
+<span class="sql-cmt">-- Enable Row Level Security</span>
+<span class="sql-kw">ALTER TABLE</span> todos <span class="sql-kw">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="sql-cmt">-- Users can only read their own todos</span>
+<span class="sql-kw">CREATE POLICY</span> <span class="sql-str">"Users read own todos"</span>
+  <span class="sql-kw">ON</span> todos <span class="sql-kw">FOR SELECT</span>
+  <span class="sql-kw">USING</span> (auth.uid() = user_id);
+
+<span class="sql-cmt">-- Users can insert their own todos</span>
+<span class="sql-kw">CREATE POLICY</span> <span class="sql-str">"Users insert own todos"</span>
+  <span class="sql-kw">ON</span> todos <span class="sql-kw">FOR INSERT</span>
+  <span class="sql-kw">WITH CHECK</span> (auth.uid() = user_id);
+
+<span class="sql-cmt">-- Users can update their own todos</span>
+<span class="sql-kw">CREATE POLICY</span> <span class="sql-str">"Users update own todos"</span>
+  <span class="sql-kw">ON</span> todos <span class="sql-kw">FOR UPDATE</span>
+  <span class="sql-kw">USING</span> (auth.uid() = user_id);
+
+<span class="sql-cmt">-- Users can delete their own todos</span>
+<span class="sql-kw">CREATE POLICY</span> <span class="sql-str">"Users delete own todos"</span>
+  <span class="sql-kw">ON</span> todos <span class="sql-kw">FOR DELETE</span>
+  <span class="sql-kw">USING</span> (auth.uid() = user_id);</code></pre>
+      </div>
+
+      <div class="callout">
+        <strong>Why RLS?</strong> Without Row Level Security, any user with the anon key could
+        read everyone's todos. These policies enforce per-user isolation at the database level —
+        no server code needed.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 4 ── -->
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h2>Set up your project</h2>
+      <p>
+        Create a new folder for your app and install the Supabase JS client.
+      </p>
+
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="lang">bash</span>
+          <span>terminal</span>
+        </div>
+        <pre><code>mkdir supabase-todo && cd supabase-todo
+npm init -y
+npm install @supabase/supabase-js</code></pre>
+      </div>
+
+      <p>
+        Create a <code>src/supabase.js</code> file to initialise the client. Replace the
+        placeholder values with the URL and anon key from Step 1.
+      </p>
+
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="lang">JS</span>
+          <span>src/supabase.js</span>
+        </div>
+        <pre><code><span class="kw">import</span> { createClient } <span class="kw">from</span> <span class="str">'@supabase/supabase-js'</span>
+
+<span class="kw">const</span> <span class="var">SUPABASE_URL</span>  = <span class="str">'https://YOUR_PROJECT_REF.supabase.co'</span>
+<span class="kw">const</span> <span class="var">SUPABASE_ANON</span> = <span class="str">'YOUR_ANON_KEY'</span>
+
+<span class="kw">export const</span> <span class="var">supabase</span> = <span class="fn">createClient</span>(<span class="var">SUPABASE_URL</span>, <span class="var">SUPABASE_ANON</span>)</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 5 ── -->
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <h2>Sign in the user anonymously</h2>
+      <p>
+        When the app loads, check whether the visitor already has a session. If not, call
+        <code>signInAnonymously()</code> to create one automatically. The session is persisted
+        in <code>localStorage</code> so the same user returns on the next visit.
+      </p>
+
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="lang">JS</span>
+          <span>src/auth.js</span>
+        </div>
+        <pre><code><span class="kw">import</span> { supabase } <span class="kw">from</span> <span class="str">'./supabase.js'</span>
+
+<span class="kw">export async function</span> <span class="fn">ensureSession</span>() {
+  <span class="kw">const</span> { data: { session } } = <span class="kw">await</span> supabase.auth.<span class="fn">getSession</span>()
+
+  <span class="kw">if</span> (session) <span class="kw">return</span> session   <span class="cmt">// already signed in</span>
+
+  <span class="cmt">// First visit — create an anonymous session</span>
+  <span class="kw">const</span> { data, error } = <span class="kw">await</span> supabase.auth.<span class="fn">signInAnonymously</span>()
+  <span class="kw">if</span> (error) <span class="kw">throw</span> error
+  <span class="kw">return</span> data.session
+}</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 6 ── -->
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
+      <h2>CRUD operations for todos</h2>
+      <p>
+        Because the Supabase client sends the user's JWT automatically, all queries are
+        automatically scoped to that user by the RLS policies you created in Step 3.
+      </p>
+
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="lang">JS</span>
+          <span>src/todos.js</span>
+        </div>
+        <pre><code><span class="kw">import</span> { supabase } <span class="kw">from</span> <span class="str">'./supabase.js'</span>
+
+<span class="cmt">/** Fetch all todos for the current user, newest first */</span>
+<span class="kw">export async function</span> <span class="fn">getTodos</span>() {
+  <span class="kw">const</span> { data, error } = <span class="kw">await</span> supabase
+    .<span class="fn">from</span>(<span class="str">'todos'</span>)
+    .<span class="fn">select</span>(<span class="str">'*'</span>)
+    .<span class="fn">order</span>(<span class="str">'inserted_at'</span>, { ascending: <span class="num">false</span> })
+
+  <span class="kw">if</span> (error) <span class="kw">throw</span> error
+  <span class="kw">return</span> data
+}
+
+<span class="cmt">/** Add a new todo */</span>
+<span class="kw">export async function</span> <span class="fn">addTodo</span>(task) {
+  <span class="kw">const</span> { data: { user } } = <span class="kw">await</span> supabase.auth.<span class="fn">getUser</span>()
+
+  <span class="kw">const</span> { data, error } = <span class="kw">await</span> supabase
+    .<span class="fn">from</span>(<span class="str">'todos'</span>)
+    .<span class="fn">insert</span>({ task, user_id: user.id })
+    .<span class="fn">select</span>()
+    .<span class="fn">single</span>()
+
+  <span class="kw">if</span> (error) <span class="kw">throw</span> error
+  <span class="kw">return</span> data
+}
+
+<span class="cmt">/** Toggle the is_done flag */</span>
+<span class="kw">export async function</span> <span class="fn">toggleTodo</span>(id, isDone) {
+  <span class="kw">const</span> { error } = <span class="kw">await</span> supabase
+    .<span class="fn">from</span>(<span class="str">'todos'</span>)
+    .<span class="fn">update</span>({ is_done: isDone })
+    .<span class="fn">eq</span>(<span class="str">'id'</span>, id)
+
+  <span class="kw">if</span> (error) <span class="kw">throw</span> error
+}
+
+<span class="cmt">/** Delete a todo */</span>
+<span class="kw">export async function</span> <span class="fn">deleteTodo</span>(id) {
+  <span class="kw">const</span> { error } = <span class="kw">await</span> supabase
+    .<span class="fn">from</span>(<span class="str">'todos'</span>)
+    .<span class="fn">delete</span>()
+    .<span class="fn">eq</span>(<span class="str">'id'</span>, id)
+
+  <span class="kw">if</span> (error) <span class="kw">throw</span> error
+}</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 7 ── -->
+  <div class="step">
+    <div class="step-num">7</div>
+    <div class="step-body">
+      <h2>Build the UI</h2>
+      <p>
+        Wire everything together in <code>src/main.js</code>. Call <code>ensureSession()</code>
+        first, then load todos, and attach event listeners to the form and list.
+      </p>
+
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="lang">JS</span>
+          <span>src/main.js</span>
+        </div>
+        <pre><code><span class="kw">import</span> { ensureSession }           <span class="kw">from</span> <span class="str">'./auth.js'</span>
+<span class="kw">import</span> { getTodos, addTodo, toggleTodo, deleteTodo } <span class="kw">from</span> <span class="str">'./todos.js'</span>
+
+<span class="kw">const</span> form  = document.<span class="fn">querySelector</span>(<span class="str">'#todo-form'</span>)
+<span class="kw">const</span> input = document.<span class="fn">querySelector</span>(<span class="str">'#todo-input'</span>)
+<span class="kw">const</span> list  = document.<span class="fn">querySelector</span>(<span class="str">'#todo-list'</span>)
+
+<span class="kw">function</span> <span class="fn">renderItem</span>(todo) {
+  <span class="kw">const</span> li = document.<span class="fn">createElement</span>(<span class="str">'li'</span>)
+  li.dataset.id = todo.id
+
+  <span class="kw">const</span> checkbox = document.<span class="fn">createElement</span>(<span class="str">'input'</span>)
+  checkbox.type    = <span class="str">'checkbox'</span>
+  checkbox.checked = todo.is_done
+  checkbox.<span class="fn">addEventListener</span>(<span class="str">'change'</span>, <span class="kw">async</span> () => {
+    <span class="kw">await</span> <span class="fn">toggleTodo</span>(todo.id, checkbox.checked)
+    span.style.textDecoration = checkbox.checked ? <span class="str">'line-through'</span> : <span class="str">'none'</span>
+  })
+
+  <span class="kw">const</span> span = document.<span class="fn">createElement</span>(<span class="str">'span'</span>)
+  span.textContent      = todo.task
+  span.style.textDecoration = todo.is_done ? <span class="str">'line-through'</span> : <span class="str">'none'</span>
+
+  <span class="kw">const</span> del = document.<span class="fn">createElement</span>(<span class="str">'button'</span>)
+  del.textContent = <span class="str">'✕'</span>
+  del.<span class="fn">addEventListener</span>(<span class="str">'click'</span>, <span class="kw">async</span> () => {
+    <span class="kw">await</span> <span class="fn">deleteTodo</span>(todo.id)
+    li.<span class="fn">remove</span>()
+  })
+
+  li.<span class="fn">append</span>(checkbox, span, del)
+  list.<span class="fn">append</span>(li)
+}
+
+<span class="kw">async function</span> <span class="fn">init</span>() {
+  <span class="kw">await</span> <span class="fn">ensureSession</span>()
+
+  <span class="kw">const</span> todos = <span class="kw">await</span> <span class="fn">getTodos</span>()
+  todos.<span class="fn">forEach</span>(renderItem)
+
+  form.<span class="fn">addEventListener</span>(<span class="str">'submit'</span>, <span class="kw">async</span> (e) => {
+    e.<span class="fn">preventDefault</span>()
+    <span class="kw">const</span> task = input.value.<span class="fn">trim</span>()
+    <span class="kw">if</span> (!task) <span class="kw">return</span>
+    input.value = <span class="str">''</span>
+    <span class="kw">const</span> todo = <span class="kw">await</span> <span class="fn">addTodo</span>(task)
+    <span class="fn">renderItem</span>(todo)   <span class="cmt">// optimistically prepend</span>
+    list.<span class="fn">prepend</span>(list.lastChild)
+  })
+}
+
+<span class="fn">init</span>().<span class="fn">catch</span>(console.error)</code></pre>
+      </div>
+
+      <p>And the minimal HTML shell:</p>
+
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="lang">HTML</span>
+          <span>index.html</span>
+        </div>
+        <pre><code><span class="kw">&lt;!DOCTYPE html&gt;</span>
+<span class="kw">&lt;html</span> lang=<span class="str">"en"</span><span class="kw">&gt;</span>
+<span class="kw">&lt;head&gt;</span>
+  <span class="kw">&lt;meta</span> charset=<span class="str">"UTF-8"</span> <span class="kw">/&gt;</span>
+  <span class="kw">&lt;title&gt;</span>My Todos<span class="kw">&lt;/title&gt;</span>
+<span class="kw">&lt;/head&gt;</span>
+<span class="kw">&lt;body&gt;</span>
+  <span class="kw">&lt;h1&gt;</span>My Todos<span class="kw">&lt;/h1&gt;</span>
+
+  <span class="kw">&lt;form</span> id=<span class="str">"todo-form"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;input</span> id=<span class="str">"todo-input"</span> placeholder=<span class="str">"What needs doing?"</span> required <span class="kw">/&gt;</span>
+    <span class="kw">&lt;button&gt;</span>Add<span class="kw">&lt;/button&gt;</span>
+  <span class="kw">&lt;/form&gt;</span>
+
+  <span class="kw">&lt;ul</span> id=<span class="str">"todo-list"</span><span class="kw">&gt;&lt;/ul&gt;</span>
+
+  <span class="kw">&lt;script</span> type=<span class="str">"module"</span> src=<span class="str">"src/main.js"</span><span class="kw">&gt;&lt;/script&gt;</span>
+<span class="kw">&lt;/body&gt;</span>
+<span class="kw">&lt;/html&gt;</span></code></pre>
+      </div>
+
+      <!-- App preview mockup -->
+      <div class="preview-box">
+        <div class="preview-bar">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+          <span style="margin-left:0.5rem">My Todos — preview</span>
+        </div>
+        <div class="preview-body">
+          <div class="preview-title">My Todos</div>
+          <div class="preview-input-row">
+            <input class="preview-input" value="Buy oat milk" readonly />
+            <div class="preview-btn">Add</div>
+          </div>
+          <ul class="preview-list">
+            <li class="preview-item">
+              <div class="preview-check"></div>
+              <span>Deploy to Vercel</span>
+            </li>
+            <li class="preview-item">
+              <div class="preview-check"></div>
+              <span>Write unit tests</span>
+            </li>
+            <li class="preview-item done-item">
+              <div class="preview-check done"></div>
+              <span>Set up Supabase project</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 8 ── -->
+  <div class="step">
+    <div class="step-num">8</div>
+    <div class="step-body">
+      <h2>Subscribe to real-time updates (optional)</h2>
+      <p>
+        Supabase can push new rows to your client over a WebSocket, so multiple tabs stay in
+        sync automatically. Enable it per-table in <strong>Database → Replication</strong>,
+        then subscribe in your app:
+      </p>
+
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="lang">JS</span>
+          <span>src/main.js — add after init()</span>
+        </div>
+        <pre><code>supabase
+  .<span class="fn">channel</span>(<span class="str">'todos-changes'</span>)
+  .<span class="fn">on</span>(
+    <span class="str">'postgres_changes'</span>,
+    { event: <span class="str">'INSERT'</span>, schema: <span class="str">'public'</span>, table: <span class="str">'todos'</span> },
+    (payload) => <span class="fn">renderItem</span>(payload.new)
+  )
+  .<span class="fn">subscribe</span>()</code></pre>
+      </div>
+
+      <div class="callout">
+        <strong>Note:</strong> Real-time with RLS requires Supabase's
+        <em>row-level security for realtime</em> feature. Make sure to enable
+        <strong>Realtime → RLS on replication</strong> in the dashboard, or the subscription will
+        receive no events.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 9 ── -->
+  <div class="step">
+    <div class="step-num">9</div>
+    <div class="step-body">
+      <h2>Deploy your app</h2>
+      <p>
+        The app is plain HTML + ES modules — deploy anywhere that serves static files.
+      </p>
+      <ul class="feature-list">
+        <li><strong>Vercel</strong> — push to GitHub, import the repo, done</li>
+        <li><strong>Netlify</strong> — drag-and-drop your project folder</li>
+        <li><strong>GitHub Pages</strong> — push to <code>gh-pages</code> branch</li>
+        <li><strong>Cloudflare Pages</strong> — instant global CDN</li>
+      </ul>
+      <p style="margin-top:0.75rem">
+        Remember to set <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> as
+        environment variables in your hosting platform if you move them out of the source file.
+      </p>
+      <div class="callout">
+        <strong>Done!</strong> Every visitor now gets their own isolated todo list with zero
+        sign-up friction — powered by Supabase anonymous auth and Row Level Security.
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <span>Built with <a href="https://supabase.com" target="_blank" rel="noopener">Supabase</a></span>
+  <span>
+    <a href="https://supabase.com/docs" target="_blank" rel="noopener">Docs</a> ·
+    <a href="https://supabase.com/docs/guides/auth/auth-anonymous" target="_blank" rel="noopener">Anonymous Auth</a> ·
+    <a href="https://supabase.com/docs/guides/database/postgres/row-level-security" target="_blank" rel="noopener">Row Level Security</a>
+  </span>
+</footer>
+
+</body>
+</html>
